@@ -162,35 +162,88 @@
       }
     };
 
-    // 添加AI健康建议生成函数
+    // 预设的健康建议模板
+    const defaultAdviceTemplates = {
+      early: [
+        "建议保持规律的作息时间，每天保证8小时优质睡眠，避免熬夜。睡前1-2小时不要进行剧烈运动或使用电子设备，创造良好的睡眠环境。",
+        "注意营养均衡，每天摄入充足的蛋白质、钙质和维生素D。建议多吃鱼、瘦肉、蛋类、牛奶等富含优质蛋白的食物。",
+        "根据身体发育情况适度进行运动，建议以中等强度有氧运动为主，如游泳、慢跑等，每周3-4次，每次30-45分钟。",
+        "保持良好的饮食习惯，少吃垃圾食品和含糖饮料。建议多吃新鲜蔬菜水果，保证每天2-3种水果和3-4种蔬菜的摄入。",
+        "保持积极乐观的心态，适当参加户外活动，增加阳光照射时间，促进维生素D的合成，有助于骨骼发育。"
+      ],
+      normal: [
+        "保持规律作息，每晚22点前入睡，保证7-8小时充足睡眠。避免玩手机等电子设备影响睡眠质量。",
+        "均衡饮食很重要，建议每天摄入适量的肉类、蛋奶、豆制品、粗粮等，确保营养均衡。",
+        "坚持适度运动，推荐每天进行30分钟以上的运动，如跳绳、打篮球等，增强体质。",
+        "注意保持良好的坐姿和站姿，避免长时间保持同一姿势，每隔1小时起来活动一下。",
+        "保持愉快的心情，多参加集体活动，保持良好的社交关系，促进身心健康发展。"
+      ],
+      late: [
+        "调整作息时间，确保每天睡眠充足，建议21:30前上床休息，营造安静舒适的睡眠环境。",
+        "加强营养补充，每天摄入富含蛋白质、钙质、铁质的食物，如牛奶、鸡蛋、瘦肉、深色蔬菜等。",
+        "科学进行运动锻炼，建议进行篮球、游泳等增高运动，但要注意适度，避免过度疲劳。",
+        "保持积极乐观的心态，不要给自己太大压力，相信通过科学的生活方式能够促进身体发育。",
+        "定期进行体检，关注骨龄发育情况，必要时可以咨询专业医生获取个性化建议。"
+      ]
+    };
+
     async function generateAIAdvice(userInfo) {
       const maxRetries = 3;
       const retryDelay = 1000; // 1秒
       let retryCount = 0;
 
+      // 根据发育情况选择合适的默认建议模板
+      const getDevelopmentStatus = () => {
+        if (userInfo.wristDevelopment === 'early' || userInfo.secondaryCharacteristics === 'early') {
+          return 'early';
+        } else if (userInfo.wristDevelopment === 'late' || userInfo.secondaryCharacteristics === 'late') {
+          return 'late';
+        }
+        return 'normal';
+      };
+
       while (retryCount < maxRetries) {
         try {
-          const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          console.log('开始调用Deepseek API...');
+          console.log('请求参数:', userInfo);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+          const response = await fetch('https://api.guiji.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${config.DEEPSEEK_API_KEY}`
             },
             body: JSON.stringify({
-              model: "deepseek-chat",
+              model: "guiji-chat",
               messages: [{
                 role: "user",
                 content: `我是一个${userInfo.age}岁的人，身高${userInfo.height}厘米，手腕骨发育${userInfo.wristDevelopment === 'early' ? '较早' : userInfo.wristDevelopment === 'normal' ? '正常' : '较晚'}，第二性征发育${userInfo.secondaryCharacteristics === 'early' ? '较早' : userInfo.secondaryCharacteristics === 'normal' ? '正常' : '较晚'}。请根据我的情况，给出5条针对性的健康建议，包括饮食、运动、作息等方面，每条建议100字以内。`
               }]
-            })
+            }),
+            signal: controller.signal
           });
+
+          clearTimeout(timeoutId);
+          console.log('API响应状态:', response.status);
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(`API请求失败: ${response.status} ${errorData.error?.message || response.statusText}`);
+            console.error('API请求失败:', errorData);
+            const errorMessage = errorData.error?.message || response.statusText;
+            if (response.status === 401) {
+              throw new Error('API密钥无效或已过期，请联系管理员更新API密钥');
+            } else if (response.status === 429) {
+              throw new Error('API请求次数超限，请稍后再试');
+            } else {
+              throw new Error(`API请求失败: ${response.status} ${errorMessage}`);
+            }
           }
 
           const data = await response.json();
+          console.log('API响应数据:', data);
 
           if (!data.choices?.[0]?.message?.content) {
             throw new Error('API返回数据格式错误');
@@ -207,13 +260,16 @@
           retryCount++;
 
           if (retryCount === maxRetries) {
-            return ['抱歉，AI建议生成失败，请稍后再试。如果问题持续存在，请联系客服。'];
+            console.log('API调用失败，使用本地建议模板');
+            return defaultAdviceTemplates[getDevelopmentStatus()];
           }
 
-          await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+          // 根据错误类型调整重试延迟
+          const delay = error.message.includes('请求次数超限') ? retryDelay * 5 : retryDelay;
+          await new Promise(resolve => setTimeout(resolve, delay * retryCount));
         }
       }
-    }
+    };
 
     // 修改计算按钮的点击事件处理函数
     calculateBtn.addEventListener('click', async () => {
