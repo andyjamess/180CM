@@ -1,0 +1,12 @@
+{
+  "name": "height-calculator",
+  "version": "1.0.0",
+  "description": "智能身高计算器",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^25.0.0"
+  }
+}

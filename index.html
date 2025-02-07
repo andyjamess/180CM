@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>智能身高计算器</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f2f5;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      width: 100%;
+      max-width: 390px;
+      margin: 0 auto;
+    }
+    h2 {
+      margin: 0 0 24px;
+      color: #1f1f1f;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .input-group {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      background-color: white;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #1890ff;
+      box-shadow: 0 0 0 2px rgba(24,144,255,0.1);
+    }
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    #calculate {
+      background-color: #1890ff;
+      color: white;
+    }
+    #calculate:hover {
+      background-color: #40a9ff;
+    }
+    #reset {
+      background-color: #f5f5f5;
+      color: #595959;
+    }
+    #reset:hover {
+      background-color: #e8e8e8;
+    }
+    #result {
+      margin-top: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #595959;
+      transition: all 0.3s ease;
+      padding: 16px;
+      border-radius: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    #result.show {
+      background: #f8f9fa;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>智能身高计算器</h2>
+    <div class="input-group">
+      <input type="number" id="height" placeholder="请输入身高(cm)" step="0.1">
+      <input type="number" id="age" placeholder="请输入年龄" min="1" max="100">
+      <select id="wristDevelopment" class="bone-age-input">
+        <option value="">请选择手腕骨发育程度</option>
+        <option value="early">发育较早</option>
+        <option value="normal">发育正常</option>
+        <option value="late">发育较晚</option>
+      </select>
+      <select id="secondaryCharacteristics" class="bone-age-input">
+        <option value="">请选择第二性征发育程度</option>
+        <option value="early">发育较早</option>
+        <option value="normal">发育正常</option>
+        <option value="late">发育较晚</option>
+      </select>
+    </div>
+    <div class="button-group">
+      <button id="calculate">开始计算</button>
+      <button id="reset">重置</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const heightInput = document.getElementById('height');
+    const ageInput = document.getElementById('age');
+    const wristDevelopmentInput = document.getElementById('wristDevelopment');
+    const secondaryCharacteristicsInput = document.getElementById('secondaryCharacteristics');
+    const calculateBtn = document.getElementById('calculate');
+    const resetBtn = document.getElementById('reset');
+    const resultDiv = document.getElementById('result');
+
+    // 骨龄评估系数
+    const boneAgeFactors = {
+      early: 1.1,
+      normal: 1.0,
+      late: 0.9
+    };
+
+    // 不同年龄段的标准身高范围（单位：厘米）
+    const heightStandards = {
+      child: { // 6-12岁
+        min: 110,
+        max: 155,
+        average: 135
+      },
+      teen: { // 13-17岁
+        min: 150,
+        max: 175,
+        average: 165
+      },
+      adult: { // 18岁以上
+        min: 160,
+        max: 185,
+        average: 170
+      }
+    };
+
+    calculateBtn.addEventListener('click', () => {
+      const height = parseFloat(heightInput.value);
+      const age = parseInt(ageInput.value);
+
+      if (!height || height <= 0 || !age || age <= 0) {
+        resultDiv.textContent = '请输入有效的身高和年龄数值';
+        return;
+      }
+
+      if (!wristDevelopmentInput.value || !secondaryCharacteristicsInput.value) {
+        resultDiv.textContent = '请完整填写骨龄评估信息';
+        return;
+      }
+       
+      // 根据年龄判断身高标准
+      let standard;
+      if (age <= 12) {
+        standard = heightStandards.child;
+      } else if (age <= 17) {
+        standard = heightStandards.teen;
+      } else {
+        standard = heightStandards.adult;
+      }
+
+      // 计算骨龄发育系数
+      const wristFactor = boneAgeFactors[wristDevelopmentInput.value];
+      const secondaryFactor = boneAgeFactors[secondaryCharacteristicsInput.value];
+      const boneAgeFactor = (wristFactor + secondaryFactor) / 2;
+
+      // 计算预测身高
+      const predictedHeight = Math.round(standard.average * boneAgeFactor);
+      
+      // 计算身高评估
+      const heightDiff = height - standard.average;
+      let evaluation = '';
+      if (height < standard.min) {
+        evaluation = `对于${age}岁来说，您的身高略低于平均水平（参考范围：${standard.min}-${standard.max}cm）。\n根据骨龄评估，您的预测成年身高约为${predictedHeight}cm。`;
+      } else if (height > standard.max) {
+        evaluation = `对于${age}岁来说，您的身高超出平均水平（参考范围：${standard.min}-${standard.max}cm）。\n根据骨龄评估，您的预测成年身高约为${predictedHeight}cm。`;
+      } else {
+        evaluation = `对于${age}岁来说，您的身高在标准范围内（参考范围：${standard.min}-${standard.max}cm）。\n根据骨龄评估，您的预测成年身高约为${predictedHeight}cm。`;
+      }
+      
+      // 生成趣味性建议
+      const tips = [
+        '每天保持7-8小时的优质睡眠，让身体充分休息~',
+        '适量运动能帮助保持好身材，建议每周运动3-4次！',
+        '均衡饮食很重要，记得多补充蛋白质和钙质哦~',
+        '保持好心情也能让你看起来更高呢，笑对生活每一天！',
+        '穿对衣服可以显高哦，建议尝试竖条纹的服装~',
+        '保持良好的站姿和坐姿，让身材更显挺拔！',
+        '跳绳、游泳都是不错的增高运动，建议尝试！',
+        '多晒太阳补充维生素D，对身高发育有帮助~'
+      ];
+      const randomTip = tips[Math.floor(Math.random() * tips.length)];
+      
+      // 组合输出结果
+      const result = `您的身高是 ${height} 厘米（${age}岁）\n\n${evaluation}\n\n小贴士：${randomTip}`;
+      resultDiv.innerHTML = result.replace(/\n/g, '<br>');
+      resultDiv.classList.remove('show');
+      setTimeout(() => {
+        resultDiv.classList.add('show');
+      }, 10);
+    });
+
+    resetBtn.addEventListener('click', () => {
+      heightInput.value = '';
+      ageInput.value = '';
+      wristDevelopmentInput.value = '';
+      secondaryCharacteristicsInput.value = '';
+      resultDiv.textContent = '';
+    });
+
+  </script>
+</body>
+</html>
