@@ -2,7 +2,7 @@
 
 一个基于网页的智能身高计算器，可以根据用户的身高、年龄和骨龄发育情况，预测未来的身高发展。
 
-在线访问地址：[https://github.com/andyjamess/180CM](https://your-username.github.io/180CM)
+在线访问地址：[https://andyjamess.github.io/180CM](https://andyjamess.github.io/180CM)
 
 ## 功能特点
 
